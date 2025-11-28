@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Names and addresses</title>
+        <style>
+            .debug-id { color: #888; font-size: 0.8em; font-family: monospace; margin-right: 5px; }
+        </style>
+    </head>
+
+    <body>
+        <h1>Names and addresses</h1>
+
+        <ul>
+            <% persons.forEach(function(person) { %>
+                <li>
+                    <% if (person.id) { %>
+                        <span class="debug-id">#<%= person.id %></span>
+                    <% } %>
+
+                    <span><%= person.firstName %></span> 
+                    <span><%= person.lastName %></span> 
+                    
+                    lives at
+                    
+                    <strong>
+                        <%= person.address ? person.address.street : 'Unknown Address' %>
+                    </strong>
+
+                    <% if (person.address && person.address.id) { %>
+                        <span class="debug-id">(Addr #<%= person.address.id %>)</span>
+                    <% } %>
+                </li>
+            <% }); %>
+        </ul>
+        
+    </body>
+</html>

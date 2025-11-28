@@ -1,0 +1,16 @@
+{
+  "name": "names-and-addresses-node",
+  "version": "1.0.0",
+  "description": "Node.js versio Java-kurssin tehtävästä",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^4.18.2",
+    "sequelize": "^6.32.1",
+    "sql-formatter": "^15.6.10",
+    "sqlite3": "^5.1.7"
+  }
+}

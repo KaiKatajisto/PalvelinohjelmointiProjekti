@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<body>
+    <h1>Addresses and Residents</h1>
+    
+    <ul>
+        <% addresses.forEach(function(addr) { %>
+            <li>
+                <strong><%= addr.street %></strong>
+                
+                <ul>
+                    <% addr.persons.forEach(function(resident) { %>
+                        <li>
+                            <%= resident.firstName %> <%= resident.lastName %>
+                        </li>
+                    <% }); %>
+                    
+                    <% if (addr.persons.length === 0) { %>
+                        <li><i>No residents</i></li>
+                    <% } %>
+                </ul>
+            </li>
+        <% }); %>
+    </ul>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Riippuvuudet (Nämä asennetaan npm install -komennolla)
+node_modules/
+
+# Tietokanta (Tämä luodaan automaattisesti seed.js avulla, ei haluta binaaria gitiin)
+database.sqlite
+
+# Ympäristömuuttujat (Tietoturva)
+.env
+
+# Käyttöjärjestelmän turhat tiedostot
+.DS_Store
+Thumbs.db
+
+# Lokitiedostot
+npm-debug.log*
