@@ -8,41 +8,45 @@ const express = require('express');
 const { Sequelize, DataTypes } = require('sequelize');
 const path = require('path');
 const seedDatabase = require('./seed');
-const { format } = require('sql-formatter'); // Nättiä SQL-kyselyä.
+const { format } = require('sql-formatter'); // Nättiä SQL-kyselyä. HUOM. Tämä joskus jumittaa, mutta sen voi ratkaista konsolissa peruuttamalla toiminnon CTRL-C konsolissa!
 
 const app = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 3000;
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // Tutkin SQL-kyselyitä käyttämällä sqlformatteria: "npm install sql-formatter" Muuta "logging: true", jos haluat normaalin näkymän.
 // 1. Käytetään SQLiteä MySQLän sijasta.
+
+// APUFUNKTIO: Tämä luo kustomoidun loggerin, joka kertoo KUKA kyselyn teki.
+const createLogger = (lahettaja) => (msg) => {
+  // Poistetaan oletusteksti
+  const cleanSql = msg.replace('Executing (default): ', '');
+
+  // Turvamekanismi isoille kyselyille
+  if (cleanSql.length > 1000) {
+    console.log(`\n[${lahettaja}] suoritti massiivisen kyselyn (ei tulosteta).`);
+    return;
+  }
+
+  // Tässä on se haluamasi teksti:
+  console.log(`\nSQL-KYSELY, minkä ${lahettaja} lähetti:`);
+  console.log('----------------------------------------------------------------');
+  console.log(format(cleanSql, {
+    language: 'sqlite',
+    tabWidth: 2,
+    keywordCase: 'upper',
+  }));
+  console.log('----------------------------------------------------------------\n');
+};
+
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: 'database.sqlite',
-  freezeTableName: true, // Tämä estää pluralization ominaisuudet toimimasta (uudelleen nimeäys sequelizessä).
-  logging: (msg) => {
-    // Poistetaan oletusteksti alusta
-    const cleanSql = msg.replace('Executing (default): ', '');
-
-    // TURVAMEKANISMI:
-    // Jos SQL-lause on yli 1000 merkkiä pitkä (esim. seed data), 
-    // älä yritä muotoilla sitä, koska se jumittaa konsolin.
-    if (cleanSql.length > 1000) {
-      console.log(`\n[SUURI SQL-KYSELY SUORITETTU] (${cleanSql.length} merkkiä) - Ei tulosteta kokonaan.\n`);
-      return; 
-    }
-
-    // Normaalit (lyhyet) kyselyt muotoillaan nätisti
-    console.log('\n----------------------------------------------------------------');
-    console.log(format(cleanSql, {
-      language: 'sqlite',
-      tabWidth: 2,
-      keywordCase: 'upper',
-    }));
-    console.log('----------------------------------------------------------------\n');
-  }
+  freezeTableName: true,
+  // Käytetään oletuksena tätä nimeä, jos ei muuta määritellä
+  logging: createLogger('Järjestelmä (Startup/Seed)') 
 });
 
 // 2. Määritellään Address-malli (Model):
@@ -70,57 +74,84 @@ const Person = sequelize.define('Person', {
 Address.hasMany(Person, { foreignKey: 'addressId', as: 'persons' }); // @OneToMany // Tämä ei ole pakollinen, mutta kuuluu hyviin käytäntöihin ja mahdollistaa käänteisen haun "Address.findAll()"
 Person.belongsTo(Address, { foreignKey: 'addressId', as: 'address' }); // @ManyToOne
 
-//// Vaikka rakenne on eri, molemmat rivit käsittelevät vain Person taulua.
+// Vaikka rakenne on eri, molemmat rivit käsittelevät vain Person taulua.
 // Address.hasMany(Person,..):    - Address: "Siirry (Person) tauluun ja etsi sieltä kaikki rivit, joissa on minun numeroni sarakkeessa addressId."
 // Person.belongsTo(Address,..):  - Person: "Tässä (Person) omassa taulussani on sarake nimeltä addressId. Käytä sitä etsiäksesi minulle pari."
 
-// 5. Polku
+// ------------------------------------------------------------------
+// 5. DEMO ENDPOINTIT (API)
+// ------------------------------------------------------------------
+
 app.get('/', async (req, res) => {
-  const persons = await Person.findAll({ // Koska findAll-funktiolle ei ole annettu where-ehtoa (esim. where: { id: 1 }), se hakee jokaisen ihmisen tietokannasta.
-    // Koska koodista puuttuu attributes-lista, Sequelize tekee ns. SELECT * -kyselyn. Se hakee kaikki sarakkeet: id, firstName, lastName, createdAt, updatedAt ja addressId.
-    include: { // hakee myös jokaisen löydetyn ihmisen osoitteen kaikki tiedot (id, street).
-      model: Address,
-      as: 'address'
-    }
-  });
-  res.render('index', { persons: persons });
+  res.render('index');
 });
 
-// 6. Polku addresses (tehdään käänteinen haku Address kautta)
-app.get('/addresses', async (req, res) => {
-  const addresses = await Address.findAll({
-    include: {
-      model: Person,
-      as: 'persons' // TÄRKEÄ: Tämä pitää vastata hasMany-määrittelyä!
-    }
-  });
-
-  // Renderöidään eri näkymä (tai sama, jos logiikka sallii)
-  res.render('addresses', { addresses: addresses });
-});
-
-app.get('/api/persons', async (req, res) => {
-  const persons = await Person.findAll({ include: { model: Address, as: 'address' } });
-  res.json(persons); // Palauttaa JSON, nyt se on api eikä palvelin applikaatio. :-)
-});
-
-/*
-app.get('/', async (req, res) => {
+// 5.1: LAZY LOADING / BAD PRACTICE (API)
+app.get('/api/lazy', async (req, res) => {
   const persons = await Person.findAll({
-    attributes: ['firstName', 'lastName'], // <-- KARSITAAN: Ei haeta muuta kuin etu- ja sukunimi.
+    // Kerrotaan kuka kysyy
+    logging: createLogger('API: Lazy Loading (Huono tapa)') 
+  }); 
+  res.json(persons);
+});
+
+// 5.2: EAGER LOADING (API) - "The Good Way"
+app.get('/api/eager', async (req, res) => {
+  const persons = await Person.findAll({ 
+    include: {
+      model: Address,
+      as: 'address' 
+    },
+    logging: createLogger('API: Eager Loading (Include)')
+  });
+  res.json(persons);
+});
+
+// 5.3: OPTIMIZED LOADING (API) - "Karsittu tieto"
+app.get('/api/optimized', async (req, res) => {
+  const persons = await Person.findAll({
+    attributes: ['firstName', 'lastName'],
     include: {
       model: Address,
       as: 'address',
-      attributes: ['street'] // <-- KARSITAAN: Ei haeta muuta kuin katu.
-    }
+      attributes: ['street']
+    },
+    logging: createLogger('API: Optimized (Karsittu data)')
   });
-  res.render('index', { persons: persons });
+  res.json(persons);
 });
-*/
 
-// Molemmissa tapauksissa Sequelize on fiksu ja hakee tiedot yhdellä ainoalla kyselyllä (JOIN).
+// 5.4: REVERSE LOOKUP (API) - "Käänteinen haku"
+app.get('/api/reverse', async (req, res) => {
+  const addresses = await Address.findAll({
+    include: {
+      model: Person,
+      as: 'persons'
+    },
+    logging: createLogger('API: Reverse Lookup (Osoite -> Asukkaat)')
+  });
+  res.json(addresses);
+});
+
+// 5.5: RAW / FLAT DATA (Mitä tietokanta oikeasti palauttaa)
+// Tässä kytkemme Sequelizen "älykkyyden" pois päältä.
+app.get('/api/raw', async (req, res) => {
+  const persons = await Person.findAll({
+    include: {
+      model: Address,
+      as: 'address'
+    },
+    raw: true,  // Anna raakana, älä muotoile"
+    nest: false, // Estää sisäkkäisten olioiden luonnin
+
+    logging: createLogger('API: Raw / Flat Data (Ilman ORM-muunnosta)')
+  });
+  res.json(persons);
+});
+
+// Kaikissa tapauksissa Sequelize on fiksu ja hakee tiedot yhdellä ainoalla kyselyllä.
 // Ero on siinä, että optimoidussa versiossa säästämme kaistaa ja muistia jättämällä turhat sarakkeet, kuten ID:t ja aikaleimat, kokonaan hakematta.
-// Ainut tapa suorittaa enemmän kyselyitä on joko pyörittää looppia tai hakea eri tietoa eri pöydistä (tai eri tavalla)
+// Ainut tapa suorittaa enemmän kyselyitä on joko pyörittää looppia (ei suositeltavaa) tai hakea eri tietoa eri pöydistä (tai eri tavalla)
 
 // 6. Palvelimen käynnistys
 const startServer = async () => {

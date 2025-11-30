@@ -1,38 +1,172 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>Names and addresses</title>
-        <style>
-            .debug-id { color: #888; font-size: 0.8em; font-family: monospace; margin-right: 5px; }
-        </style>
-    </head>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #fafafa;
+            color: #333;
+        }
+        h1 { text-align: center; color: #2c3e50; }
+        
+        .demo-box {
+            background: #ffffff;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
 
-    <body>
-        <h1>Names and addresses</h1>
+        ul { list-style-type: none; padding: 0; }
+        
+        li {
+            margin-bottom: 30px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        li:last-child { border-bottom: none; }
 
+        .header-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        a {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 15px;
+            min-width: 220px;
+            text-align: center;
+            transition: background-color 0.2s;
+        }
+        a:hover { background-color: #0056b3; }
+
+        .description { color: #555; font-size: 1em; line-height: 1.4; }
+        
+        /* KOODILAATIKON TYYLIT */
+        .code-block {
+            background-color: #282c34; /* VS Code Dark -tyylinen tausta */
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 5px solid #007bff;
+            overflow-x: auto; /* Jos rivi on pitkä, se rullaa sivusuunnassa */
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        /* PRE-tagi säilyttää välilyönnit ja rivinvaihdot */
+        pre {
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+        
+        /* Syntaksikorostus */
+        .kwd { color: #c678dd; } /* violetti (const, await) */
+        .func { color: #61afef; } /* sininen (findAll) */
+        .str { color: #98c379; }  /* vihreä (merkkijonot) */
+        .prop { color: #e06c75; } /* punertava (attribuutit) */
+        .comment { color: #5c6370; font-style: italic; } /* harmaa */
+
+        .note { text-align: center; margin-top: 30px; color: #888; font-size: 0.9em; font-style: italic; }
+    </style>
+</head>
+
+<body>
+    <h1>Backend & ORM Demo</h1>
+
+    <div class="demo-box">
         <ul>
-            <% persons.forEach(function(person) { %>
-                <li>
-                    <% if (person.id) { %>
-                        <span class="debug-id">#<%= person.id %></span>
-                    <% } %>
+            <li>
+                <div class="header-row">
+                    <a href="/api/raw" target="_blank">0. Raw / Flat Data</a>
+                    <span class="description"><b>Totuus.</b> Tätä tietokanta oikeasti palauttaa: litteä lista, ei sisäkkäisyyttä.</span>
+                </div>
+                <div class="code-block">
+<pre><code><span class="kwd">const</span> persons = <span class="kwd">await</span> Person.<span class="func">findAll</span>({
+  include: { model: Address, as: <span class="str">'address'</span> },
+  <span class="prop">raw</span>: <span class="kwd">true</span>,  <span class="comment">// <--- "Kytke ORM-tuotos pois päältä"</span>
+  <span class="prop">nest</span>: <span class="kwd">false</span> <span class="comment">// <--- Älä rakenna olioita, anna taulukkorivi</span>
+});</code></pre>
+                </div>
+            </li>
+            
+            <li>
+                <div class="header-row">
+                    <a href="/api/lazy" target="_blank">1. Lazy Loading</a>
+                    <span class="description"><b>Huono tapa.</b> Hakee vain henkilöt, osoite puuttuu datasta kokonaan.</span>
+                </div>
+                <div class="code-block">
+<pre><code><span class="kwd">const</span> persons = <span class="kwd">await</span> Person.<span class="func">findAll</span>({
+  <span class="comment">// Ongelma: Address-tietoa ei pyydetä -> sitä ei haeta.</span>
+});</code></pre>
+                </div>
+            </li>
 
-                    <span><%= person.firstName %></span> 
-                    <span><%= person.lastName %></span> 
-                    
-                    lives at
-                    
-                    <strong>
-                        <%= person.address ? person.address.street : 'Unknown Address' %>
-                    </strong>
+            <li>
+                <div class="header-row">
+                    <a href="/api/eager" target="_blank">2. Eager Loading</a>
+                    <span class="description"><b>Hyvä tapa (Include).</b> Hakee kaiken yhdellä JOIN-kyselyllä.</span>
+                </div>
+                <div class="code-block">
+<pre><code><span class="kwd">const</span> persons = <span class="kwd">await</span> Person.<span class="func">findAll</span>({ 
+  <span class="prop">include</span>: { 
+    <span class="prop">model</span>: Address, 
+    <span class="prop">as</span>: <span class="str">'address'</span> 
+  } 
+});</code></pre>
+                </div>
+            </li>
 
-                    <% if (person.address && person.address.id) { %>
-                        <span class="debug-id">(Addr #<%= person.address.id %>)</span>
-                    <% } %>
-                </li>
-            <% }); %>
+            <li>
+                <div class="header-row">
+                    <a href="/api/optimized" target="_blank">3. Optimized</a>
+                    <span class="description"><b>Karsittu data.</b> ID-numerot ja aikaleimat jätetty pois kaistan säästämiseksi.</span>
+                </div>
+                <div class="code-block">
+<pre><code><span class="kwd">const</span> persons = <span class="kwd">await</span> Person.<span class="func">findAll</span>({
+  <span class="prop">attributes</span>: [<span class="str">'firstName'</span>, <span class="str">'lastName'</span>], <span class="comment">// Valitse vain nämä</span>
+  <span class="prop">include</span>: {
+    <span class="prop">model</span>: Address,
+    <span class="prop">as</span>: <span class="str">'address'</span>,
+    <span class="prop">attributes</span>: [<span class="str">'street'</span>] <span class="comment">// Valitse vain katu</span>
+  }
+});</code></pre>
+                </div>
+            </li>
+
+            <li>
+                <div class="header-row">
+                    <a href="/api/reverse" target="_blank">4. Reverse Lookup</a>
+                    <span class="description"><b>Käänteinen.</b> Hakee osoitteet ja listaa niiden asukkaat.</span>
+                </div>
+                <div class="code-block">
+<pre><code><span class="kwd">const</span> addresses = <span class="kwd">await</span> Address.<span class="func">findAll</span>({
+  <span class="prop">include</span>: {
+    <span class="prop">model</span>: Person,
+    <span class="prop">as</span>: <span class="str">'persons'</span> <span class="comment">// Huom: Monikko (hasMany)</span>
+  }
+});</code></pre>
+                </div>
+            </li>
+
         </ul>
         
-    </body>
+        <p class="note">Linkit aukeavat uuteen välilehteen, jotta nähdään palvelimen palauttama raaka JSON-data.</p>
+    </div>
+</body>
 </html>
