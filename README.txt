@@ -1,4 +1,4 @@
-PROJEKTI: Palvelinohjelmointi Projekti (Node.js REST API & ORM)
+PROJEKTI: Palvelinohjelmointi Projekti (Node.js REST API & ORM Demo)
 TEKIJÄ: Kai Katajisto, TITE23
 KUVAUS: Harjoitustyö, jossa toteutetaan REST API ja Web-käyttöliittymä.
         Teknologioina Node.js, Express, Sequelize ja SQLite.
@@ -6,12 +6,9 @@ KUVAUS: Harjoitustyö, jossa toteutetaan REST API ja Web-käyttöliittymä.
 ----------------------------------------------------------------------
 
 TIIVISTELMÄ
-Tämä sovellus ratkaisee klassisen "N+1 -kyselyn ongelman" käyttämällä
-Sequelize ORM:n Eager Loading -ominaisuutta. Sovellus tarjoaa kaksi
-rajapintaa samaan dataan:
-
-1. Graafinen käyttöliittymä (HTML) selaimelle.
-2. REST API (JSON) muille sovelluksille.
+Tämä sovellus on rakennettu opetusvälineeksi havainnollistamaan "N+1 -kyselyn ongelmaa"
+ja ORM-kirjastojen (Sequelize) toimintaa. Sovellus tarjoaa "kojelaudan", josta voi
+ajaa erilaisia tietokantakyselyitä ja nähdä erot suorituskyvyssä ja datan rakenteessa.
 
 Tietokantana toimii kevyt, tiedostopohjainen SQLite (vastaa Java-kurssin H2-kantaa).
 Sovellus luo käynnistyessään automaattisesti tietokantatiedoston ja alustaa testidatan.
@@ -24,6 +21,7 @@ TEKNOLOGIAT
 - Tietokanta: 	SQLite (Serverless, tiedostopohjainen)
 - ORM:       	Sequelize (Hoitaa tietokantakyselyt ja relaatiot)
 - View:      	EJS (HTML-renderöinti)
+- Työkalut:     sql-formatter (SQL-lauseiden kaunisteluun konsolissa)
 
 ======================================================================
 ASENNUS JA KÄYNNISTYS (VAIHTOEHTO A: NODE.JS)
@@ -64,26 +62,41 @@ RAJAPINNAT (ENDPOINTS)
 1. PÄÄSIVU (UI)
    - URL: http://localhost:3000/
    - Metodi: GET
-   - Palauttaa: HTML-sivun, jossa listataan henkilöt ja osoitteet.
-   - Kuvaus: Havainnollistaa "Eager Loading" -haun tulokset visuaalisesti.
+   - Palauttaa: HTML-hallintapaneelin linkkeineen.
+   - Kuvaus: Toimii demon "kaukosäätimenä".
 
-2. OSOITTEET (UI)
-   - URL: http://localhost:3000/addresses
-   - Metodi: GET
-   - Palauttaa: HTML-sivun, käänteinen haku (Osoite -> Asukkaat).
+2. API-DEMOT (JSON REST)
+   Nämä endpointit palauttavat JSON-dataa ja tulostavat palvelimen konsoliin
+   tarkan SQL-kyselyn, jonka ORM suoritti.
 
-3. REST API (JSON)
-   - URL: http://localhost:3000/api/persons
-   - Metodi: GET
-   - Palauttaa: JSON-dataa (lista henkilöistä ja heidän osoitteistaan).
-   - Kuvaus: Koneluettava rajapinta, täyttää REST API -vaatimukset.
+   A) LAZY LOADING (Huono tapa)
+      - URL: /api/lazy
+      - Kuvaus: Hakee vain henkilöt, osoitetieto jää puuttumaan.
+
+   B) EAGER LOADING (Hyvä tapa)
+      - URL: /api/eager
+      - Kuvaus: Käyttää "include"-toimintoa. Hakee kaiken yhdellä JOIN-kyselyllä.
+
+   C) OPTIMIZED (Karsittu data)
+      - URL: /api/optimized
+      - Kuvaus: Hakee vain tarvittavat tekstikentät, jättää ID:t ja aikaleimat pois.
+
+   D) REVERSE LOOKUP (Käänteinen haku)
+      - URL: /api/reverse
+      - Kuvaus: Hakee osoitteet ja listaa niiden asukkaat (Address -> Persons).
+
+   E) RAW DATA (Tietokannan totuus)
+      - URL: /api/raw
+      - Kuvaus: Palauttaa datan litteänä listana ilman ORM:n tekemää sisäkkäistä
+        objektimuunnosta. Havainnollistaa miksi ORM on hyödyllinen.
 
 ======================================================================
 TIETOKANTA
 ======================================================================
-Sovellus käyttää SQLite-tietokantaa. Käynnistyksen yhteydessä sovellus:
+Sovellus käyttää SQLite-tietokantaa.
+Käynnistyksen yhteydessä sovellus:
 1. Luo tiedoston "database.sqlite" juurikansioon (jos ei olemassa).
 2. Synkronoi tietokantamallit (luo taulut People ja Addresses).
-3. Ajaa seed-scriptin, joka täyttää taulut testidatalla.
+3. Ajaa seed-scriptin, joka täyttää taulut massiivisella testidatalla.
 
-Huom: Demotarkoituksessa tietokanta nollataan jokaisella käynnistyskerralla.
+Huom: Demotarkoituksessa tietokanta nollataan (DROP TABLE) jokaisella käynnistyskerralla.
